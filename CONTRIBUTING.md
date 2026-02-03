@@ -1,109 +1,80 @@
-# Contributing to SwiftConcurrency
+# Contributing to SwiftRouter
 
-Thank you for your interest in contributing! 🚀
+First off, thank you for considering contributing to SwiftRouter! It's people like you that make SwiftRouter such a great tool.
 
-## Prerequisites
+## Code of Conduct
 
-- Swift 5.9+
-- Understanding of Swift Concurrency (async/await, actors, structured concurrency)
+This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code.
+
+## How Can I Contribute?
+
+### Reporting Bugs
+
+Before creating bug reports, please check the existing issues as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible:
+
+- **Use a clear and descriptive title**
+- **Describe the exact steps which reproduce the problem**
+- **Provide specific examples to demonstrate the steps**
+- **Describe the behavior you observed after following the steps**
+- **Explain which behavior you expected to see instead and why**
+- **Include Swift version and OS version**
+
+### Suggesting Enhancements
+
+Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion, please include:
+
+- **Use a clear and descriptive title**
+- **Provide a step-by-step description of the suggested enhancement**
+- **Provide specific examples to demonstrate the steps**
+- **Describe the current behavior and explain which behavior you expected to see instead**
+- **Explain why this enhancement would be useful**
+
+### Pull Requests
+
+1. Fork the repo and create your branch from `main`
+2. If you've added code that should be tested, add tests
+3. If you've changed APIs, update the documentation
+4. Ensure the test suite passes
+5. Make sure your code follows the existing style (SwiftLint)
+6. Issue that pull request!
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/muhittincamdali/SwiftConcurrency.git
-cd SwiftConcurrency
+# Clone your fork
+git clone https://github.com/YOUR_USERNAME/SwiftRouter.git
+
+# Navigate to the project
+cd SwiftRouter
+
+# Open in Xcode
 open Package.swift
+
+# Run tests
+swift test
 ```
 
-## Adding New Utilities
+## Style Guide
 
-### 1. Choose the Right Module
+- Follow [Swift API Design Guidelines](https://swift.org/documentation/api-design-guidelines/)
+- Use SwiftLint for code style consistency
+- Write meaningful commit messages following [Conventional Commits](https://www.conventionalcommits.org/)
+- Document public APIs with DocC-compatible comments
 
-- `Tasks/` - Task management utilities
-- `Sequences/` - Async sequence operators
-- `Actors/` - Actor-based utilities
-- `Utilities/` - General helpers
+## Commit Messages
 
-### 2. Follow Concurrency Best Practices
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-```swift
-// ✅ Good: Sendable conformance
-public struct ThrottledTask<T: Sendable>: Sendable {
-    // ...
-}
+- `feat:` A new feature
+- `fix:` A bug fix
+- `docs:` Documentation only changes
+- `style:` Code style changes (formatting, semicolons, etc)
+- `refactor:` Code change that neither fixes a bug nor adds a feature
+- `test:` Adding missing tests
+- `chore:` Changes to the build process or auxiliary tools
 
-// ✅ Good: Actor isolation
-public actor AsyncCache<Key: Hashable & Sendable, Value: Sendable> {
-    // ...
-}
+Example: `feat(deeplink): add universal link support`
 
-// ✅ Good: Proper cancellation handling
-public func execute() async throws -> T {
-    try Task.checkCancellation()
-    // ...
-}
-```
+## License
 
-### 3. Add Documentation
-
-```swift
-/// Executes a task with automatic retry on failure.
-///
-/// ## Example
-///
-/// ```swift
-/// let result = try await RetryTask(maxAttempts: 3) {
-///     try await fetchData()
-/// }.execute()
-/// ```
-///
-/// - Parameter maxAttempts: Maximum retry attempts.
-/// - Returns: The task result.
-/// - Throws: The last error if all retries fail.
-```
-
-### 4. Add Tests
-
-```swift
-final class RetryTaskTests: XCTestCase {
-    func testSucceedsOnFirstAttempt() async throws {
-        let task = RetryTask(maxAttempts: 3) {
-            return "success"
-        }
-        
-        let result = try await task.execute()
-        XCTAssertEqual(result, "success")
-    }
-    
-    func testRetriesOnFailure() async throws {
-        var attempts = 0
-        let task = RetryTask(maxAttempts: 3) {
-            attempts += 1
-            if attempts < 3 {
-                throw TestError()
-            }
-            return "success"
-        }
-        
-        let result = try await task.execute()
-        XCTAssertEqual(attempts, 3)
-    }
-}
-```
-
-## Pull Request Checklist
-
-- [ ] Code is Sendable-compliant
-- [ ] Cancellation is handled properly
-- [ ] No data races (verified with Thread Sanitizer)
-- [ ] Documentation includes examples
-- [ ] Tests cover success, failure, and cancellation cases
-- [ ] CHANGELOG updated
-
-## Testing for Data Races
-
-```bash
-swift test --sanitize=thread
-```
-
-Thank you for contributing! 🙏
+By contributing, you agree that your contributions will be licensed under the MIT License.

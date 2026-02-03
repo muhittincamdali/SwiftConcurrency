@@ -4,47 +4,50 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.2.x   | :white_check_mark: |
-| 1.1.x   | :white_check_mark: |
-| < 1.1   | :x:                |
+| 1.x.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Please report security vulnerabilities to: security@muhittincamdali.com
+We take the security of SwiftRouter seriously. If you have discovered a security vulnerability, we appreciate your help in disclosing it to us in a responsible manner.
 
-**Do NOT open public issues for security vulnerabilities.**
+### How to Report
 
-## Concurrency Security Considerations
+**Please do not report security vulnerabilities through public GitHub issues.**
 
-SwiftConcurrency handles concurrent operations. Security considerations include:
+Instead, please report them via email to the repository owner. You can find contact information on the GitHub profile.
 
-### Data Races
-- All types are designed to be Sendable-compliant
-- Actor isolation prevents data races
-- Regular testing with Thread Sanitizer
+Please include the following information:
 
-### Deadlocks
-- Async/await prevents traditional deadlocks
-- Semaphore usage documented for proper handling
+- Type of issue (e.g., deep link injection, state manipulation, etc.)
+- Full paths of source file(s) related to the manifestation of the issue
+- The location of the affected source code (tag/branch/commit or direct URL)
+- Any special configuration required to reproduce the issue
+- Step-by-step instructions to reproduce the issue
+- Proof-of-concept or exploit code (if possible)
+- Impact of the issue, including how an attacker might exploit it
 
-### Resource Exhaustion
-- Rate limiting utilities prevent DoS
-- Configurable limits on concurrent operations
+### What to Expect
 
-## Best Practices
+- A confirmation of receipt within 48 hours
+- An assessment of the vulnerability within 7 days
+- Regular updates on our progress
+- Credit for responsible disclosure (if desired)
 
-```swift
-// ✅ Safe: Using actor for shared state
-actor Counter {
-    private var value = 0
-    func increment() { value += 1 }
-}
+## Security Best Practices
 
-// ❌ Unsafe: Shared mutable state
-class Counter {
-    var value = 0 // Data race!
-    func increment() { value += 1 }
-}
-```
+When using SwiftRouter in your projects:
 
-Thank you for helping keep SwiftConcurrency secure! 🛡️
+1. **Validate Deep Links** - Always validate URL parameters before navigation
+2. **Use Route Guards** - Implement authentication guards for protected routes
+3. **Sanitize Parameters** - Never trust user input from URL parameters
+4. **Audit Navigation Paths** - Review which screens are accessible via deep links
+
+## Security Features
+
+SwiftRouter includes several security considerations:
+
+- **Type-Safe Parameters** - Reduces injection risks
+- **Route Guards** - Authentication/authorization interceptors
+- **URL Validation** - Built-in URL parsing with validation
+- **No External Dependencies** - Minimal attack surface

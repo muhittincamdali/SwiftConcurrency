@@ -1,283 +1,378 @@
 # SwiftConcurrency
 
-[![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS%2015%20|%20macOS%2013-blue.svg)](https://developer.apple.com)
-[![SPM](https://img.shields.io/badge/SPM-Compatible-green.svg)](https://swift.org/package-manager/)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS-blue.svg)](https://developer.apple.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![SPM](https://img.shields.io/badge/SPM-Compatible-brightgreen.svg)](Package.swift)
 
-A comprehensive toolkit for Swift structured concurrency. Provides production-ready utilities for task groups, async channels, retry policies, timeouts, throttling, and more.
-
----
+A comprehensive Swift concurrency utilities library providing powerful abstractions for async/await, task groups, actors, and structured concurrency patterns.
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **ConcurrentMap** | Transform sequences concurrently with task groups |
-| **ThrottledTaskGroup** | Limit max concurrent tasks to avoid resource exhaustion |
-| **AsyncChannel** | Go-style typed channels for async communication |
-| **AsyncThrottler** | Debounce and throttle async operations |
-| **AsyncOperation** | Bridge `Operation` subclasses to async/await |
-| **CacheActor** | Thread-safe in-memory cache powered by actors |
-| **SerialExecutor** | Custom serial executor for actor isolation |
-| **AsyncStreamBuilder** | Ergonomic async stream construction |
-| **MergedAsyncSequence** | Merge multiple async sequences into one |
-| **TaskTimeout** | Run async work with a deadline |
-| **RetryPolicy** | Retry failed operations with exponential backoff |
-| **Task+Extensions** | Handy extensions on `Task` |
-
----
-
-## Requirements
-
-- Swift 5.9+
-- iOS 15+ / macOS 13+
-
----
+- 🚀 **Task Groups** - Concurrent mapping, throttled execution, ordered results, batch processing
+- ⏱️ **Timeouts** - Task timeouts, deadlines, cancellation handling
+- 🔄 **Retry Logic** - Exponential backoff, linear backoff, custom strategies
+- 📡 **Async Channels** - Go-style channels for inter-task communication
+- 🎭 **Actors** - Thread-safe caching, database operations, network isolation
+- 🌊 **Async Sequences** - Buffered, filtered, mapped, merged sequences
+- ⏰ **Scheduling** - Task scheduler, priority queues, delayed execution
+- 🔒 **Synchronization** - Semaphores, barriers, phasers
+- 🧪 **Testing** - Test scheduler, mock actors for deterministic tests
 
 ## Installation
 
 ### Swift Package Manager
 
-Add the dependency to your `Package.swift`:
+Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muhittincamdali/SwiftConcurrency.git", from: "1.0.0")
+    .package(url: "https://github.com/muhittinc/SwiftConcurrency.git", from: "1.0.0")
 ]
 ```
 
-Then add `"SwiftConcurrency"` to your target's dependencies:
+Or in Xcode: File → Add Package Dependencies → Enter repository URL.
 
-```swift
-.target(
-    name: "YourApp",
-    dependencies: ["SwiftConcurrency"]
-)
-```
-
-### Xcode
-
-1. Go to **File → Add Package Dependencies...**
-2. Enter the repository URL
-3. Select version rules and add to your project
-
----
-
-## Usage
+## Quick Start
 
 ### Concurrent Map
 
-Transform a collection concurrently, preserving order:
+Transform collections in parallel with automatic ordering:
 
 ```swift
 import SwiftConcurrency
 
-let urls: [URL] = [/* ... */]
-let responses = try await urls.concurrentMap { url in
-    let (data, _) = try await URLSession.shared.data(from: url)
-    return data
+let urls = [url1, url2, url3, url4, url5]
+
+// Basic concurrent map
+let data = try await urls.concurrentMap { url in
+    try await URLSession.shared.data(from: url).0
+}
+
+// With concurrency limit (max 3 at a time)
+let throttledData = try await urls.concurrentMap(maxConcurrency: 3) { url in
+    try await URLSession.shared.data(from: url).0
 }
 ```
 
-### Throttled Task Group
+### Retry with Backoff
 
-Run tasks with a concurrency limit:
+Automatically retry failing operations:
 
 ```swift
-let results = try await ThrottledTaskGroup.run(
-    maxConcurrency: 4,
-    tasks: urls
-) { url in
-    let (data, _) = try await URLSession.shared.data(from: url)
-    return data
+let result = try await withRetry(maxAttempts: 5) {
+    try await fetchDataFromServer()
+}
+
+// With custom backoff
+let task = RetryableTask(
+    maxAttempts: 3,
+    backoff: .exponential(initial: .milliseconds(100), multiplier: 2.0, max: .seconds(30)),
+    shouldRetry: { error in
+        (error as? NetworkError)?.isRetryable ?? false
+    }
+) {
+    try await api.request()
+}
+let data = try await task.run()
+```
+
+### Timeouts
+
+Add timeouts to any async operation:
+
+```swift
+// With duration
+let result = try await withTimeout(.seconds(30)) {
+    try await longRunningOperation()
+}
+
+// With absolute deadline
+let deadline = Date().addingTimeInterval(60)
+let result = try await DeadlineTask.run(deadline: deadline) {
+    try await fetchData()
 }
 ```
 
 ### Async Channel
 
-Communicate between tasks using typed channels:
+Go-style channels for producer-consumer patterns:
 
 ```swift
-let channel = AsyncChannel<String>(capacity: 5)
+let channel = AsyncChannel<Int>(capacity: 10)
 
 // Producer
 Task {
-    await channel.send("Hello")
-    await channel.send("World")
-    await channel.finish()
+    for i in 1...100 {
+        await channel.send(i)
+    }
+    await channel.close()
 }
 
 // Consumer
-for await message in channel {
-    print(message)
+for await value in channel {
+    print("Received: \(value)")
 }
 ```
 
-### Async Throttler
-
-Debounce rapid calls:
+### Thread-Safe Caching
 
 ```swift
-let throttler = AsyncThrottler(interval: .milliseconds(300))
+let cache = CacheActor<String, User>(defaultTTL: .minutes(5))
 
-for query in searchQueries {
-    await throttler.submit {
-        await performSearch(query)
+// Get or compute
+let user = await cache.getOrSet("user-123") {
+    await fetchUserFromServer(id: "123")
+}
+```
+
+### Semaphores
+
+Limit concurrent access to resources:
+
+```swift
+let semaphore = AsyncSemaphore(value: 3)
+
+await withTaskGroup(of: Void.self) { group in
+    for url in urls {
+        group.addTask {
+            await semaphore.wait()
+            defer { semaphore.signal() }
+            await download(url)
+        }
     }
 }
 ```
 
-### Cache Actor
+### Batch Processing
 
-Thread-safe caching:
+Process large datasets in manageable batches:
 
 ```swift
-let cache = CacheActor<String, Data>(maxCount: 100)
+let items = Array(1...10000)
 
-await cache.set("avatar", value: imageData)
-
-if let cached = await cache.get("avatar") {
-    displayImage(cached)
+let results = try await BatchTaskGroup.process(
+    items,
+    batchSize: 100,
+    maxConcurrentBatches: 4
+) { batch in
+    await processBatch(batch)
 }
 ```
 
-### Task Timeout
+### Task Scheduling
 
-Run work with a deadline:
+Schedule tasks for future execution:
 
 ```swift
-let result = try await withTimeout(.seconds(5)) {
-    try await fetchRemoteConfig()
+let scheduler = TaskScheduler()
+
+// One-time delayed task
+await scheduler.schedule(after: .seconds(30)) {
+    print("Hello after 30 seconds!")
+}
+
+// Recurring task
+await scheduler.scheduleRepeating(interval: .minutes(5)) {
+    await refreshData()
 }
 ```
 
-### Retry Policy
+### Priority Queue
 
-Retry with exponential backoff:
+Process items by priority:
 
 ```swift
-let data = try await RetryPolicy(
-    maxAttempts: 3,
-    initialDelay: .seconds(1),
-    backoffMultiplier: 2.0
-).execute {
-    try await fetchData()
+let queue = AsyncPriorityQueue<Task>()
+
+await queue.enqueue(lowPriorityTask, priority: 1)
+await queue.enqueue(highPriorityTask, priority: 10)
+await queue.enqueue(mediumTask, priority: 5)
+
+// Dequeues in priority order: high, medium, low
+while let task = await queue.tryDequeue() {
+    await task.execute()
 }
 ```
 
-### Merged Async Sequence
-
-Merge multiple streams:
+### Async Sequence Extensions
 
 ```swift
-let merged = MergedAsyncSequence(
-    notifications.map { .notification($0) },
-    messages.map { .message($0) }
-)
+// Collect all elements
+let items = try await stream.collect()
 
-for await event in merged {
-    handle(event)
-}
+// Filter async
+let filtered = someSequence.asyncFilter { await isValid($0) }
+
+// Map async
+let mapped = items.asyncMap { await transform($0) }
+
+// Buffer for performance
+let buffered = sequence.buffered(capacity: 100)
 ```
 
-### Async Stream Builder
+## API Reference
 
-Build streams ergonomically:
+### Task Groups
 
-```swift
-let stream = AsyncStreamBuilder<Int>.build { yield in
-    for i in 0..<10 {
-        yield(i)
-        try await Task.sleep(for: .milliseconds(100))
-    }
-}
+| Type | Description |
+|------|-------------|
+| `concurrentMap` | Parallel map preserving order |
+| `concurrentCompactMap` | Parallel compact map |
+| `concurrentFilter` | Parallel filtering |
+| `concurrentForEach` | Parallel iteration |
+| `BatchTaskGroup` | Process items in batches |
+| `ThrottledTaskGroup` | Limit concurrent operations |
+| `OrderedTaskGroup` | Preserve result order |
 
-for await value in stream {
-    print(value)
-}
-```
+### Retry Strategies
 
-### Bridge Operations to Async
+| Type | Description |
+|------|-------------|
+| `ExponentialBackoff` | Exponentially increasing delays |
+| `LinearBackoff` | Linearly increasing delays |
+| `ConstantBackoff` | Fixed delay between retries |
+| `FibonacciBackoff` | Fibonacci sequence delays |
+| `RetryPolicy` | Configurable retry policy |
+| `RetryableTask` | Self-retrying task wrapper |
 
-```swift
-let result = try await AsyncOperation.run(on: operationQueue) {
-    // Heavy synchronous work
-    processLargeDataset()
-}
-```
+### Synchronization
 
-### Task Extensions
+| Type | Description |
+|------|-------------|
+| `AsyncSemaphore` | Counting semaphore |
+| `BinarySemaphore` | Mutex (binary semaphore) |
+| `AsyncBarrier` | Wait for all tasks |
+| `CyclicBarrier` | Reusable barrier |
+| `Phaser` | Dynamic party registration |
 
-```swift
-// Sleep with cancellation check
-try await Task.sleepChecked(for: .seconds(2))
+### Actors
 
-// Detached with priority
-let handle = Task.detachedWithPriority(.high) {
-    await heavyComputation()
-}
-```
+| Type | Description |
+|------|-------------|
+| `CacheActor` | Thread-safe caching with TTL |
+| `DatabaseActor` | Serialized DB operations |
+| `NetworkActor` | Network request management |
 
----
+### Scheduling
+
+| Type | Description |
+|------|-------------|
+| `TaskScheduler` | Schedule delayed/recurring tasks |
+| `AsyncPriorityQueue` | Priority-based task queue |
+| `DelayedTask` | Cancellable delayed execution |
+| `DebouncedTask` | Debounce rapid calls |
+| `ThrottledTask` | Rate-limit execution |
+
+### Testing
+
+| Type | Description |
+|------|-------------|
+| `TestScheduler` | Deterministic virtual time |
+| `TestClock` | Controllable clock for tests |
+| `MockActor` | Mock actor for verifications |
 
 ## Architecture
 
 ```
 SwiftConcurrency/
 ├── TaskGroup/
-│   ├── ConcurrentMap         # Ordered concurrent transformations
-│   └── ThrottledTaskGroup    # Bounded concurrency execution
+│   ├── ConcurrentMap.swift
+│   ├── ThrottledTaskGroup.swift
+│   ├── OrderedTaskGroup.swift
+│   └── BatchTaskGroup.swift
 ├── Async/
-│   ├── AsyncOperation        # Operation ↔ async bridge
-│   ├── AsyncChannel          # Typed producer-consumer channel
-│   └── AsyncThrottler        # Rate limiting for async work
+│   ├── AsyncChannel.swift
+│   ├── AsyncOperation.swift
+│   ├── AsyncThrottler.swift
+│   ├── AsyncSemaphore.swift
+│   └── AsyncBarrier.swift
 ├── Actors/
-│   ├── SerialExecutor        # Custom serial executor
-│   └── CacheActor            # Thread-safe cache
+│   ├── CacheActor.swift
+│   ├── DatabaseActor.swift
+│   ├── NetworkActor.swift
+│   └── SerialExecutor.swift
 ├── Stream/
-│   ├── AsyncStreamBuilder    # Ergonomic stream creation
-│   └── MergedAsyncSequence   # Multi-stream merging
+│   ├── BufferedAsyncSequence.swift
+│   ├── MergedAsyncSequence.swift
+│   ├── FilteredAsyncSequence.swift
+│   └── MappedAsyncSequence.swift
 ├── Timeout/
-│   └── TaskTimeout           # Deadline-based execution
+│   ├── TaskTimeout.swift
+│   ├── DeadlineTask.swift
+│   └── CancellationHandler.swift
 ├── Retry/
-│   └── RetryPolicy           # Backoff retry strategy
-└── Extensions/
-    └── Task+Extensions       # Convenience helpers
+│   ├── RetryPolicy.swift
+│   ├── ExponentialBackoff.swift
+│   ├── LinearBackoff.swift
+│   └── RetryableTask.swift
+├── Scheduling/
+│   ├── TaskScheduler.swift
+│   ├── PriorityQueue.swift
+│   └── DelayedTask.swift
+├── Extensions/
+│   ├── Task+Extensions.swift
+│   ├── AsyncSequence+Extensions.swift
+│   └── Result+Async.swift
+└── Testing/
+    ├── TestScheduler.swift
+    └── MockActor.swift
 ```
 
----
+## Requirements
+
+- Swift 6.0+
+- iOS 16.0+ / macOS 13.0+ / tvOS 16.0+ / watchOS 9.0+
+- Xcode 16.0+
 
 ## Thread Safety
 
-All public types are `Sendable`. The library leverages Swift's structured concurrency model:
+All types in this library are designed to be `Sendable` and safe for use in
+concurrent contexts. Actor-based types provide isolated state, while value
+types ensure safe passing across concurrency boundaries.
 
-- **Actors** for mutable shared state (`CacheActor`)
-- **Task groups** for parallel work (`ConcurrentMap`, `ThrottledTaskGroup`)
-- **AsyncSequence** for streaming data (`AsyncChannel`, `MergedAsyncSequence`)
-- **Cooperative cancellation** throughout
+## Best Practices
 
----
+### Do
 
-## Performance Notes
+- Use `maxConcurrency` to prevent resource exhaustion
+- Handle cancellation cooperatively with `Task.checkCancellation()`
+- Use appropriate backoff strategies for retries
+- Prefer `TaskGroup` over manual task management
+- Use actors for shared mutable state
 
-- `ThrottledTaskGroup` uses a semaphore-like pattern via actors to limit concurrency without blocking threads
-- `CacheActor` evicts entries when exceeding `maxCount` using LRU ordering
-- `MergedAsyncSequence` processes sources concurrently without buffering overhead
-- All utilities respect task cancellation for prompt cleanup
+### Don't
 
----
+- Create unbounded concurrent operations
+- Ignore cancellation in long-running tasks
+- Use tight retry loops without backoff
+- Mix async/await with completion handlers unnecessarily
+
+## Performance
+
+- Zero-overhead abstractions where possible
+- Efficient heap-based priority queue implementation
+- Lock-free implementations using Swift concurrency primitives
+- Memory-efficient buffered sequences
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`feature/amazing-feature`)
-3. Write tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+Contributions are welcome! Please feel free to submit a Pull Request.
 
----
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+Muhittin Camdali
+
+---
+
+Made with ❤️ for the Swift community

@@ -1,49 +1,98 @@
-<div align="center">
+<p align="center">
+  <img src="Assets/logo.png" alt="SwiftConcurrency" width="200"/>
+</p>
 
-# ⚡ SwiftConcurrency
+<h1 align="center">SwiftConcurrency</h1>
 
-**Swift 6 concurrency utilities - async sequences, task management & more**
+<p align="center">
+  <strong>⚡ Swift 6 concurrency utilities - async sequences, task management & more</strong>
+</p>
 
-[![Swift](https://img.shields.io/badge/Swift-6.0+-F05138?style=for-the-badge&logo=swift&logoColor=white)](https://swift.org)
-[![iOS](https://img.shields.io/badge/iOS-15.0+-000000?style=for-the-badge&logo=apple&logoColor=white)](https://developer.apple.com/ios/)
-[![SPM](https://img.shields.io/badge/SPM-Compatible-FA7343?style=for-the-badge&logo=swift&logoColor=white)](https://swift.org/package-manager/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-
-</div>
-
----
-
-## ✨ Features
-
-- ⚡ **Swift 6 Ready** — Full strict concurrency mode
-- 🔄 **Async Sequences** — Enhanced iteration utilities
-- 📊 **Task Groups** — Simplified parallel execution
-- 🎯 **Cancellation** — Cooperative cancellation helpers
-- 🔒 **Thread Safety** — Actor-based utilities
+<p align="center">
+  <img src="https://img.shields.io/badge/Swift-6.0-orange.svg" alt="Swift"/>
+  <img src="https://img.shields.io/badge/iOS-17.0+-blue.svg" alt="iOS"/>
+</p>
 
 ---
 
-## 🚀 Quick Start
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| 📊 **AsyncSequence+** | Additional operators |
+| ⏱️ **Debounce/Throttle** | Rate limiting |
+| 🔄 **Retry** | Automatic retry logic |
+| 🚦 **Semaphore** | Concurrency limiting |
+| ⏰ **Timeout** | Task timeouts |
+| 🔗 **TaskGroup+** | Enhanced task groups |
+
+## Async Sequences
 
 ```swift
 import SwiftConcurrency
 
-// Parallel execution
-let results = await [url1, url2, url3].concurrentMap { url in
-    try await fetchData(from: url)
+// Debounce
+searchQuery.debounce(for: .milliseconds(300))
+
+// Throttle
+locationUpdates.throttle(for: .seconds(1))
+
+// Retry
+try await api.fetch().retry(maxAttempts: 3, delay: .seconds(1))
+
+// Timeout
+try await api.fetch().timeout(after: .seconds(10))
+```
+
+## Task Management
+
+```swift
+// Cancellable task
+let task = CancellableTask {
+    await longRunningWork()
+}
+task.cancel()
+
+// Task with progress
+let task = ProgressTask { progress in
+    for i in 0..<100 {
+        progress.update(Double(i) / 100)
+        await doWork()
+    }
 }
 
-// Debounced async
-let debounced = search.debounced(for: .milliseconds(300))
-
-// Task with timeout
-try await withTimeout(.seconds(5)) {
-    await longRunningTask()
+// Concurrent limit
+let semaphore = AsyncSemaphore(limit: 3)
+await withTaskGroup(of: Void.self) { group in
+    for url in urls {
+        group.addTask {
+            await semaphore.wait()
+            defer { semaphore.signal() }
+            await download(url)
+        }
+    }
 }
 ```
 
----
+## Operators
 
-## 📄 License
+```swift
+// Merge streams
+merge(stream1, stream2, stream3)
 
-MIT • [@muhittincamdali](https://github.com/muhittincamdali)
+// Combine latest
+combineLatest(users, settings) { users, settings in
+    // Both available
+}
+
+// Zip
+zip(stream1, stream2)
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT License

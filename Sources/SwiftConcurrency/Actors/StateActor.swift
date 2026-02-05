@@ -153,13 +153,13 @@ public actor StateActor<State: Sendable> {
     ///
     /// - Parameters:
     ///   - options: Update options.
-    ///   - mutation: Async closure that mutates the state.
+    ///   - mutation: Async closure that transforms the state.
     public func updateAsync(
         options: UpdateOptions = .default,
-        _ mutation: (inout State) async -> Void
+        _ mutation: (State) async -> State
     ) async {
         let oldState = state
-        await mutation(&state)
+        state = await mutation(state)
         
         if options.recordHistory {
             recordHistory(oldState)
@@ -272,30 +272,20 @@ public actor StateActor<State: Sendable> {
     public func subscribe<T: Equatable>(
         to keyPath: KeyPath<State, T>
     ) -> AsyncStream<T> where State: Equatable {
-        let id = UUID()
         var lastValue = state[keyPath: keyPath]
         
         return AsyncStream { continuation in
             // Send current value
             continuation.yield(lastValue)
             
-            // Create a wrapper subscriber
-            let innerContinuation = AsyncStream<State>.Continuation { _ in }
-            subscribers[id] = innerContinuation
-            
-            Task {
-                for await newState in subscribe() {
+            Task { [weak self] in
+                guard let self = self else { return }
+                for await newState in await self.subscribe() {
                     let newValue = newState[keyPath: keyPath]
                     if newValue != lastValue {
                         lastValue = newValue
                         continuation.yield(newValue)
                     }
-                }
-            }
-            
-            continuation.onTermination = { [weak self] _ in
-                Task { [weak self] in
-                    await self?.removeSubscriber(id: id)
                 }
             }
         }
@@ -518,26 +508,30 @@ public actor CompositeStateActor<A: Sendable, B: Sendable> {
     
     /// Subscribes to combined state changes.
     public func subscribe() -> AsyncStream<(A, B)> {
-        AsyncStream { continuation in
+        let capturedStateA = stateA
+        let capturedStateB = stateB
+        
+        return AsyncStream { continuation in
             Task {
-                async let streamA = stateA.subscribe()
-                async let streamB = stateB.subscribe()
-                
-                var latestA = await stateA.currentState
-                var latestB = await stateB.currentState
+                var latestA = await capturedStateA.currentState
+                var latestB = await capturedStateB.currentState
                 
                 continuation.yield((latestA, latestB))
                 
+                // Use separate tasks instead of async let in task group
+                let streamA = await capturedStateA.subscribe()
+                let streamB = await capturedStateB.subscribe()
+                
                 await withTaskGroup(of: Void.self) { group in
                     group.addTask {
-                        for await a in await streamA {
+                        for await a in streamA {
                             latestA = a
                             continuation.yield((latestA, latestB))
                         }
                     }
                     
                     group.addTask {
-                        for await b in await streamB {
+                        for await b in streamB {
                             latestB = b
                             continuation.yield((latestA, latestB))
                         }

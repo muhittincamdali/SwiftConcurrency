@@ -539,17 +539,8 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
         chunkedReduce(chunkSize: size) { $0 }
     }
     
-    /// Collects all elements into an array.
-    public func collect() async throws -> [Element] {
-        var result: [Element] = []
-        for try await element in self {
-            result.append(element)
-        }
-        return result
-    }
-    
-    /// Reduces to a final value.
-    public func reduce<Result>(
+    /// Reduces to a final value using async closures.
+    public func asyncReduce<Result>(
         _ initialResult: Result,
         _ nextPartialResult: (Result, Element) async throws -> Result
     ) async rethrows -> Result {
@@ -560,8 +551,8 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
         return result
     }
     
-    /// Reduces using a combining closure.
-    public func reduce(
+    /// Reduces using a combining closure with async support.
+    public func combineReduce(
         _ nextPartialResult: (Element, Element) async throws -> Element
     ) async rethrows -> Element? {
         var result: Element?
@@ -575,37 +566,36 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
         return result
     }
     
-    /// Sum of all elements.
+    /// Sum of all numeric elements.
     public func sum() async throws -> Element where Element: Numeric {
-        try await reduce(.zero, +)
-    }
-    
-    /// Product of all elements.
-    public func product() async throws -> Element where Element: Numeric {
-        try await reduce(1 as Element, *)
-    }
-    
-    /// Minimum element.
-    public func min() async throws -> Element? where Element: Comparable {
-        try await reduce { Swift.min($0, $1) }
-    }
-    
-    /// Maximum element.
-    public func max() async throws -> Element? where Element: Comparable {
-        try await reduce { Swift.max($0, $1) }
-    }
-    
-    /// Count of elements.
-    public func count() async throws -> Int {
-        var count = 0
-        for try await _ in self {
-            count += 1
+        var total: Element = .zero
+        for try await element in self {
+            total += element
         }
-        return count
+        return total
     }
     
-    /// Average of numeric elements.
-    public func average() async throws -> Double where Element: BinaryInteger {
+    /// Product of all numeric elements.
+    public func product() async throws -> Element where Element: Numeric {
+        var total: Element = 1
+        for try await element in self {
+            total *= element
+        }
+        return total
+    }
+    
+    /// Minimum element using async comparison.
+    public func asyncMin() async throws -> Element? where Element: Comparable {
+        try await combineReduce { Swift.min($0, $1) }
+    }
+    
+    /// Maximum element using async comparison.
+    public func asyncMax() async throws -> Element? where Element: Comparable {
+        try await combineReduce { Swift.max($0, $1) }
+    }
+    
+    /// Average of integer elements.
+    public func intAverage() async throws -> Double where Element: BinaryInteger {
         var sum: Element = 0
         var count = 0
         for try await element in self {
@@ -616,7 +606,7 @@ extension AsyncSequence where Self: Sendable, Element: Sendable {
     }
     
     /// Average of floating-point elements.
-    public func average() async throws -> Element where Element: FloatingPoint {
+    public func floatAverage() async throws -> Element where Element: FloatingPoint {
         var sum: Element = 0
         var count = 0
         for try await element in self {

@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="Assets/logo.png" alt="SwiftConcurrency" width="200"/>
-</p>
-
 <h1 align="center">SwiftConcurrency</h1>
 
 <p align="center">

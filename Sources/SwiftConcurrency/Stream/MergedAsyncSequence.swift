@@ -95,7 +95,7 @@ internal struct AnySendableAsyncSequence<Element: Sendable>: AsyncSequence, Send
     private let makeIteratorClosure: @Sendable () -> AnyAsyncIterator
 
     init<S: AsyncSequence & Sendable>(_ sequence: S) where S.Element == Element {
-        let box = UncheckedSendableBox(sequence)
+        let box = MergeUncheckedBox(sequence)
         self.makeIteratorClosure = {
             var iterator = box.value.makeAsyncIterator()
             return AnyAsyncIterator {
@@ -116,9 +116,9 @@ internal struct AnySendableAsyncSequence<Element: Sendable>: AsyncSequence, Send
     }
 }
 
-/// Wrapper to make non-Sendable values sendable when safety is guaranteed.
+/// Internal wrapper for merge operations.
 @usableFromInline
-struct UncheckedSendableBox<T>: @unchecked Sendable {
+struct MergeUncheckedBox<T>: @unchecked Sendable {
     let value: T
     init(_ value: T) { self.value = value }
 }

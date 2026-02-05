@@ -1,6 +1,6 @@
-# Contributing to SwiftRouter
+# Contributing to SwiftConcurrency
 
-First off, thank you for considering contributing to SwiftRouter! It's people like you that make SwiftRouter such a great tool.
+First off, thank you for considering contributing to SwiftConcurrency! It's people like you that make SwiftConcurrency such a great tool.
 
 ## Code of Conduct
 
@@ -42,10 +42,10 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/SwiftRouter.git
+git clone https://github.com/YOUR_USERNAME/SwiftConcurrency.git
 
 # Navigate to the project
-cd SwiftRouter
+cd SwiftConcurrency
 
 # Open in Xcode
 open Package.swift
@@ -60,6 +60,17 @@ swift test
 - Use SwiftLint for code style consistency
 - Write meaningful commit messages following [Conventional Commits](https://www.conventionalcommits.org/)
 - Document public APIs with DocC-compatible comments
+- Ensure all types are `Sendable` compliant
+
+## Concurrency Guidelines
+
+Since this is a concurrency library, please follow these additional guidelines:
+
+- **Actor Isolation**: Prefer actors for shared mutable state
+- **Sendable**: All public types must conform to Sendable
+- **Data Races**: Test thoroughly for data races using `-strict-concurrency=complete`
+- **Cancellation**: Always handle task cancellation gracefully
+- **Documentation**: Include thread-safety documentation in comments
 
 ## Commit Messages
 
@@ -73,7 +84,15 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 - `test:` Adding missing tests
 - `chore:` Changes to the build process or auxiliary tools
 
-Example: `feat(deeplink): add universal link support`
+Example: `feat(debounce): add grouped debounce variant`
+
+## Testing
+
+- Write tests for all new functionality
+- Use `TestScheduler` for time-dependent tests
+- Aim for deterministic tests (no real delays)
+- Test cancellation scenarios
+- Test error propagation
 
 ## License
 

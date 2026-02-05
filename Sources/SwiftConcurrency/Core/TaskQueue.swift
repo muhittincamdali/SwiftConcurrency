@@ -460,12 +460,12 @@ public actor BoundedTaskQueue<Result: Sendable> {
     }
 }
 
-// MARK: - PriorityTaskQueue
+// MARK: - GenericPriorityTaskQueue
 
-/// A specialized queue optimized for priority-based scheduling.
+/// A specialized generic queue optimized for priority-based scheduling.
 ///
 /// Uses a heap-based priority queue for O(log n) enqueue/dequeue operations.
-public actor PriorityTaskQueue<Result: Sendable> {
+public actor GenericPriorityTaskQueue<Result: Sendable> {
     
     // MARK: - Types
     

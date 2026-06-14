@@ -15,6 +15,9 @@
 
 <h1 align="center">SwiftConcurrency</h1>
 
+## 🚀 Killer Feature: Time-Travel Scheduler
+Testing async code is notoriously flaky. Our `TimeTravelScheduler` allows you to deterministically advance virtual time in your unit tests, eliminating `XCTestExpectation` and `Task.sleep` flakiness forever.
+
 <p align="center">
   <strong>⚡ Comprehensive Swift concurrency utilities - async sequences, task management, debugging & more</strong>
 </p>

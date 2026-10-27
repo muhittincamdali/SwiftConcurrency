@@ -45,11 +45,8 @@ remap = [
   '^https://github\.com/muhittincamdali/SwiftConcurrency/(?:blob|tree)/main/(.*)$ file:///home/runner/work/SwiftConcurrency/SwiftConcurrency/$1',
   # The article pages on GitHub Pages are built from the .docc articles by docs.yml after a push
   # to main, so a pull request that adds an article links to a page that is not online yet. Each
-  # article URL is checked against its source file instead.
-  # The documentation root is the same case until docs.yml has published the site for the first
-  # time (GitHub Pages answers 404 before that). Remove this line once the site is online, so a
-  # site that is down fails the check again.
-  '^https://muhittincamdali\.github\.io/SwiftConcurrency/documentation/swiftconcurrency/$ file:///home/runner/work/SwiftConcurrency/SwiftConcurrency/Sources/SwiftConcurrency/SwiftConcurrency.docc/SwiftConcurrency.md',
+  # article URL is checked against its source file instead; the documentation root stays a live
+  # check, so a site that is down still fails.
   '^https://muhittincamdali\.github\.io/SwiftConcurrency/documentation/swiftconcurrency/gettingstarted$ file:///home/runner/work/SwiftConcurrency/SwiftConcurrency/Sources/SwiftConcurrency/SwiftConcurrency.docc/GettingStarted.md',
   '^https://muhittincamdali\.github\.io/SwiftConcurrency/documentation/swiftconcurrency/testingtimebasedcode$ file:///home/runner/work/SwiftConcurrency/SwiftConcurrency/Sources/SwiftConcurrency/SwiftConcurrency.docc/TestingTimeBasedCode.md',
   '^https://muhittincamdali\.github\.io/SwiftConcurrency/documentation/swiftconcurrency/cancellationandlimits$ file:///home/runner/work/SwiftConcurrency/SwiftConcurrency/Sources/SwiftConcurrency/SwiftConcurrency.docc/CancellationAndLimits.md',

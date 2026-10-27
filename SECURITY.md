@@ -25,7 +25,10 @@ These are the properties a report can hold it to:
   removed entries, `SingleFlight` forgets finished operations, and `concurrentMap` keeps at most
   `maxConcurrency` child tasks.
 - Arithmetic on caller input does not trap: backoff delays are computed in floating point and
-  capped before they become a `Duration`, and the semaphore's permit count saturates.
+  capped before they become a `Duration`, and the semaphore's permit count saturates. Waiting is
+  left to the clock you pass: `ContinuousClock`, like `Task.sleep(for:)`, stops the program for
+  a deadline more than `Int64.max` seconds (about 292 billion years) away, so a timeout, debounce,
+  throttle or retry delay that long is outside what the package promises.
 - Invalid configuration (negative durations, limits below 1, a NaN multiplier) stops the
   program at the call that passed it, with a message naming the value.
 

@@ -48,6 +48,11 @@ means the time is already up, so ``TimeoutError`` is thrown without running the 
   a `Duration`. An exponent that overflows becomes infinity, not NaN, and gives `maxDelay`;
   jitter never exceeds the base delay. No retry number, up to `Int.max`, traps.
 - ``AsyncSemaphore/signal()`` saturates the permit count at `Int.max`.
+- Waiting is done by the clock you pass. ``withTimeout(_:tolerance:clock:operation:)``,
+  ``withDeadline(_:tolerance:clock:operation:)``, ``Debouncer``, ``Throttler`` and the delays of
+  `retry` hand their deadline to the clock unchanged. `ContinuousClock`, like
+  `Task.sleep(for:)`, stops the program when that deadline is more than `Int64.max` seconds
+  (about 292 billion years) away, so use a shorter duration when you mean "never".
 
 ### Memory
 

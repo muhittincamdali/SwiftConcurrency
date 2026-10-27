@@ -37,6 +37,13 @@ struct BackoffTests {
         #expect(linear.baseDelay(forRetry: retry) == .seconds(60))
     }
 
+    @Test("An initial delay of zero stays zero for every retry", arguments: [1, 10, 1_100, 5_000, Int.max])
+    func zeroInitialDelay(retry: Int) {
+        let backoff = Backoff.exponential(initial: .zero)
+        #expect(backoff.baseDelay(forRetry: retry) == .zero)
+        #expect(backoff.jittered(.full).delay(forRetry: retry) == .zero)
+    }
+
     @Test("A maxDelay longer than Int64.max seconds does not trap")
     func maxDelayBeyondInt64Seconds() {
         let maxDelay = Duration.seconds(Int64.max) * 4

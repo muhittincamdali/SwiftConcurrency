@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-27
+
 SwiftConcurrency 2 is a rewrite for Swift 6. The 1.x sources were removed in June 2026 and
 the package did not build; 2.0 replaces them with a smaller set of types, each tested and
 documented. Nothing from the 1.x API is kept.
@@ -63,5 +65,6 @@ documented. Nothing from the 1.x API is kept.
 First tagged version: Swift 5.9 utilities for actors, async sequences, retries, timeouts and
 task groups. It is superseded by 2.0.
 
-[Unreleased]: https://github.com/muhittincamdali/SwiftConcurrency/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/muhittincamdali/SwiftConcurrency/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/muhittincamdali/SwiftConcurrency/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/muhittincamdali/SwiftConcurrency/releases/tag/v1.0.0

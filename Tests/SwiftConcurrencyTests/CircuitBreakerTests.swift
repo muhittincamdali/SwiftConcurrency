@@ -94,11 +94,11 @@ struct CircuitBreakerTests {
         }
         #expect(breaker.state == .closed)
 
+        let cancelled = CircuitBreaker(failureThreshold: 1, clock: TestClock())
         await #expect(throws: CancellationError.self) {
-            try await CircuitBreaker(failureThreshold: 1, clock: TestClock()).run { () -> Int in
-                throw CancellationError()
-            }
+            try await cancelled.run { () -> Int in throw CancellationError() }
         }
+        #expect(cancelled.state == .closed, "a cancellation is not a failure")
     }
 
     @Test("A call that started before the breaker opened does not change the new state")

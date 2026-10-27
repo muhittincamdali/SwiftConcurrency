@@ -1,7 +1,7 @@
 /// A clock whose time only moves when you call ``advance(by:)``, for testing code that sleeps.
 ///
 /// Every type in this package that waits for time to pass (``Debouncer``, ``Throttler``,
-/// ``retry(maxAttempts:backoff:clock:isolation:shouldRetry:operation:)``, ``withTimeout(_:clock:isolation:operation:)``,
+/// ``retry(maxAttempts:backoff:clock:shouldRetry:operation:)``, ``withTimeout(_:tolerance:clock:operation:)``,
 /// ``CircuitBreaker``) takes a `Clock`. Give it a `TestClock` in tests and the test decides when
 /// each sleep ends, so the test runs in microseconds and gives the same result on every run.
 ///

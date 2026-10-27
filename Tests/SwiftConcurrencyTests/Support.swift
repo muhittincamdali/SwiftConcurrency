@@ -44,6 +44,8 @@ struct TestFailure: Error, Equatable {
 
 /// Polls `condition` until it is true, yielding in between. Used only to wait for a task to
 /// reach a suspension point that has no hook of its own; fails the test after `limit` polls.
+/// Runs on the caller's actor, so `condition` can read main-actor state.
+nonisolated(nonsending)
 func waitUntil(
     _ comment: Comment,
     limit: Int = 100_000,

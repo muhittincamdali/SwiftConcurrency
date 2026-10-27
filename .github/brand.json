@@ -1,0 +1,43 @@
+{
+  "name": "SwiftConcurrency",
+  "repository": "muhittincamdali/SwiftConcurrency",
+  "tagline": {
+    "en": "Limit, order, time out, retry and debounce async work in Swift 6, and test it with a clock you control."
+  },
+  "tags": {
+    "en": [
+      "Swift 6",
+      "iOS · macOS",
+      "TestClock",
+      "No dependencies"
+    ]
+  },
+  "motif": "code",
+  "buttons": [
+    "start",
+    "docs",
+    "examples"
+  ],
+  "links": {
+    "docs": "https://muhittincamdali.github.io/SwiftConcurrency/documentation/swiftconcurrency/",
+    "examples": "Examples/"
+  },
+  "languages": [
+    "en",
+    "tr",
+    "zh-CN",
+    "ja",
+    "ko",
+    "es",
+    "de",
+    "fr",
+    "pt-BR",
+    "ru"
+  ],
+  "docc": {
+    "targets": [
+      "SwiftConcurrency"
+    ]
+  },
+  "socialTheme": "dark"
+}

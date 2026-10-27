@@ -1,0 +1,13 @@
+version: 1
+builder:
+  configs:
+    - platform: ios
+      scheme: SwiftConcurrency
+      documentation_targets: [SwiftConcurrency]
+    - platform: macos-spm
+    - platform: tvos
+      scheme: SwiftConcurrency
+    - platform: watchos
+      scheme: SwiftConcurrency
+    - platform: visionos
+      scheme: SwiftConcurrency

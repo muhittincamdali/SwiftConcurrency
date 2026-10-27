@@ -1,163 +1,127 @@
-// RetryTests.swift
-// SwiftConcurrencyTests
-//
-// Created by Muhittin Camdali
-// Copyright © 2025 Muhittin Camdali. All rights reserved.
+import Testing
+import SwiftConcurrency
 
-import XCTest
-@testable import SwiftConcurrency
+@Suite("retry")
+struct RetryTests {
+    /// Attempts that fail until `succeedOn`, recording each attempt number.
+    actor FlakyService {
+        let succeedOn: Int
+        private(set) var attempts: [Int] = []
 
-final class RetryTests: XCTestCase {
-    
-    // MARK: - ExponentialBackoff Tests
-    
-    func testExponentialBackoffProgression() {
-        let backoff = ExponentialBackoff(
-            initialDelay: .milliseconds(100),
-            multiplier: 2.0,
-            maxDelay: .seconds(10)
-        )
-        
-        let delays = (0..<5).map { backoff.delay(forAttempt: $0) }
-        
-        // Verify exponential progression
-        XCTAssertEqual(delays[0].nanoseconds, 100_000_000) // 100ms
-        XCTAssertEqual(delays[1].nanoseconds, 200_000_000) // 200ms
-        XCTAssertEqual(delays[2].nanoseconds, 400_000_000) // 400ms
-        XCTAssertEqual(delays[3].nanoseconds, 800_000_000) // 800ms
-        XCTAssertEqual(delays[4].nanoseconds, 1_600_000_000) // 1600ms
+        init(succeedOn: Int) {
+            self.succeedOn = succeedOn
+        }
+
+        func call(_ attempt: Int) throws -> String {
+            attempts.append(attempt)
+            guard attempt >= succeedOn else { throw TestFailure(id: attempt) }
+            return "ok on \(attempt)"
+        }
     }
-    
-    func testExponentialBackoffMaxCap() {
-        let backoff = ExponentialBackoff(
-            initialDelay: .seconds(1),
-            multiplier: 10.0,
-            maxDelay: .seconds(5)
-        )
-        
-        let delay = backoff.delay(forAttempt: 10)
-        XCTAssertEqual(delay.nanoseconds, 5_000_000_000) // Capped at 5s
+
+    @Test("Retries after the backoff delay until the operation succeeds")
+    func succeedsAfterRetries() async throws {
+        let clock = TestClock()
+        let service = FlakyService(succeedOn: 3)
+        let backoff = Backoff.exponential(initial: .seconds(1), multiplier: 2)
+        let call = Task {
+            try await retry(maxAttempts: 5, backoff: backoff, clock: clock) { attempt in
+                try await service.call(attempt)
+            }
+        }
+
+        try await clock.waitForSleepers()
+        #expect(await service.attempts == [1])
+        clock.advance(by: .milliseconds(999))
+        #expect(await service.attempts == [1], "the second attempt waits the full first delay")
+        clock.advance(by: .milliseconds(1))
+
+        try await clock.waitForSleepers()
+        #expect(await service.attempts == [1, 2])
+        clock.advance(by: .seconds(2))
+
+        #expect(try await call.value == "ok on 3")
+        #expect(await service.attempts == [1, 2, 3])
+        #expect(clock.now == .init(offset: .seconds(3)))
     }
-    
-    // MARK: - LinearBackoff Tests
-    
-    func testLinearBackoffProgression() {
-        let backoff = LinearBackoff(
-            initialDelay: .milliseconds(100),
-            increment: .milliseconds(100),
-            maxDelay: .seconds(1)
-        )
-        
-        let delays = (0..<5).map { backoff.delay(forAttempt: $0) }
-        
-        XCTAssertEqual(delays[0].nanoseconds, 100_000_000) // 100ms
-        XCTAssertEqual(delays[1].nanoseconds, 200_000_000) // 200ms
-        XCTAssertEqual(delays[2].nanoseconds, 300_000_000) // 300ms
-        XCTAssertEqual(delays[3].nanoseconds, 400_000_000) // 400ms
-        XCTAssertEqual(delays[4].nanoseconds, 500_000_000) // 500ms
+
+    @Test("Rethrows the last error once the attempts are used up")
+    func rethrowsLastError() async {
+        let service = FlakyService(succeedOn: .max)
+        await #expect(throws: TestFailure(id: 4)) {
+            try await retry(maxAttempts: 4, backoff: .immediate) { try await service.call($0) }
+        }
+        #expect(await service.attempts == [1, 2, 3, 4])
     }
-    
-    // MARK: - RetryableTask Tests
-    
-    func testRetryableTaskSucceedsOnFirstAttempt() async throws {
-        var attempts = 0
-        
-        let result = try await withRetry(maxAttempts: 3) {
+
+    @Test("maxAttempts of 1 runs the operation once")
+    func singleAttempt() async {
+        let service = FlakyService(succeedOn: 2)
+        await #expect(throws: TestFailure(id: 1)) {
+            try await retry(maxAttempts: 1, backoff: .immediate) { try await service.call($0) }
+        }
+        #expect(await service.attempts == [1])
+    }
+
+    @Test("An error that shouldRetry rejects is thrown without another attempt")
+    func shouldRetryStops() async {
+        let service = FlakyService(succeedOn: 3)
+        await #expect(throws: TestFailure(id: 1)) {
+            try await retry(maxAttempts: 5, backoff: .immediate, shouldRetry: { _ in false }) {
+                try await service.call($0)
+            }
+        }
+        #expect(await service.attempts == [1])
+    }
+
+    @Test("CancellationError from the operation is never retried")
+    func cancellationIsNotRetried() async {
+        let attempts = Recorder<Int>()
+        await #expect(throws: CancellationError.self) {
+            try await retry(maxAttempts: 5, backoff: .immediate) { attempt in
+                await attempts.append(attempt)
+                throw CancellationError()
+            }
+        }
+        #expect(await attempts.values == [1])
+    }
+
+    @Test("Cancelling during the wait ends it and starts no new attempt")
+    func cancelDuringWait() async throws {
+        let clock = TestClock()
+        let service = FlakyService(succeedOn: 2)
+        let call = Task {
+            try await retry(maxAttempts: 3, backoff: .constant(.seconds(10)), clock: clock) {
+                try await service.call($0)
+            }
+        }
+        try await clock.waitForSleepers()
+        call.cancel()
+        await #expect(throws: CancellationError.self) { try await call.value }
+        #expect(await service.attempts == [1])
+        #expect(clock.sleeperCount == 0)
+    }
+
+    @MainActor
+    @Test("The operation runs on the caller's actor")
+    func keepsCallerIsolation() async throws {
+        var attempts = 0 // main-actor state, mutated without Sendable
+        let result = try await retry(maxAttempts: 3, backoff: .immediate) { attempt in
+            MainActor.assertIsolated()
             attempts += 1
-            return "success"
+            if attempt < 2 { throw TestFailure() }
+            return attempt
         }
-        
-        XCTAssertEqual(result, "success")
-        XCTAssertEqual(attempts, 1)
+        #expect(result == 2)
+        #expect(attempts == 2)
     }
-    
-    func testRetryableTaskRetriesOnFailure() async throws {
-        var attempts = 0
-        
-        let result = try await withRetry(
-            maxAttempts: 5,
-            backoff: .constant(.milliseconds(10))
-        ) {
-            attempts += 1
-            if attempts < 3 {
-                throw TestError.intentional
-            }
-            return "success"
-        }
-        
-        XCTAssertEqual(result, "success")
-        XCTAssertEqual(attempts, 3)
-    }
-    
-    func testRetryableTaskExhaustsAttempts() async {
-        var attempts = 0
-        
-        do {
-            _ = try await withRetry(
-                maxAttempts: 3,
-                backoff: .constant(.milliseconds(10))
-            ) { () -> String in
-                attempts += 1
-                throw TestError.intentional
-            }
-            XCTFail("Expected error")
-        } catch {
-            XCTAssertTrue(error is TestError)
-            XCTAssertEqual(attempts, 3)
-        }
-    }
-    
-    func testRetryableTaskWithCondition() async throws {
-        var attempts = 0
-        
-        do {
-            _ = try await withRetry(
-                maxAttempts: 5,
-                shouldRetry: { error in
-                    // Only retry if it's a retryable error
-                    (error as? RetryableError)?.isRetryable ?? false
-                }
-            ) { () -> String in
-                attempts += 1
-                if attempts < 3 {
-                    throw RetryableError.temporary
-                }
-                throw RetryableError.permanent
-            }
-            XCTFail("Expected error")
-        } catch {
-            XCTAssertEqual(attempts, 3) // Stopped at permanent error
-        }
-    }
-    
-    // MARK: - RetryPolicy Tests
-    
-    func testRetryPolicyMaxRetries() async throws {
-        let policy = RetryPolicy(maxRetries: 3)
-        var attempts = 0
-        
-        do {
-            try await policy.execute {
-                attempts += 1
-                throw TestError.intentional
-            }
-            XCTFail("Expected error")
-        } catch {
-            XCTAssertEqual(attempts, 4) // 1 initial + 3 retries
-        }
-    }
-}
 
-// MARK: - Helper Types
-
-enum RetryableError: Error {
-    case temporary
-    case permanent
-    
-    var isRetryable: Bool {
-        switch self {
-        case .temporary: return true
-        case .permanent: return false
+    #if os(macOS)
+    @Test("maxAttempts of 0 stops the process")
+    func zeroAttemptsTraps() async {
+        await #expect(processExitsWith: .failure) {
+            _ = try? await retry(maxAttempts: 0) { _ in 1 }
         }
     }
+    #endif
 }

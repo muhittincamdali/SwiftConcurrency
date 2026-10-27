@@ -1,131 +1,84 @@
-// TimeoutTests.swift
-// SwiftConcurrencyTests
-//
-// Created by Muhittin Camdali
-// Copyright © 2025 Muhittin Camdali. All rights reserved.
+import Testing
+import SwiftConcurrency
 
-import XCTest
-@testable import SwiftConcurrency
+@Suite("withTimeout and withDeadline")
+struct TimeoutTests {
+    @Test("An operation that finishes in time returns its value")
+    func finishesInTime() async throws {
+        let clock = TestClock()
+        let value = try await withTimeout(.seconds(1), clock: clock) { 7 }
+        #expect(value == 7)
+    }
 
-final class TimeoutTests: XCTestCase {
-    
-    // MARK: - TaskTimeout Tests
-    
-    func testTimeoutSucceedsWithinLimit() async throws {
-        let result = try await withTimeout(.milliseconds(500)) {
-            try await Task.sleep(for: .milliseconds(50))
-            return "success"
-        }
-        
-        XCTAssertEqual(result, "success")
-    }
-    
-    func testTimeoutThrowsWhenExceeded() async {
-        do {
-            _ = try await withTimeout(.milliseconds(50)) {
-                try await Task.sleep(for: .milliseconds(500))
-                return "should not reach"
+    @Test("An operation still running at the deadline is cancelled and TimeoutError is thrown")
+    func timesOut() async throws {
+        let clock = TestClock()
+        let gate = AsyncSemaphore(value: 0)
+        let call = Task {
+            try await withTimeout(.seconds(5), clock: clock) {
+                try await gate.wait()
             }
-            XCTFail("Expected timeout error")
-        } catch {
-            XCTAssertTrue(error is TimeoutError)
+        }
+        try await clock.waitForSleepers()
+        await waitUntil("the operation is waiting") { gate.waiterCount == 1 }
+
+        clock.advance(by: .seconds(4))
+        #expect(gate.waiterCount == 1, "one second before the deadline the operation still runs")
+
+        clock.advance(by: .seconds(1))
+        await #expect(throws: TimeoutError.self) { try await call.value }
+        #expect(gate.waiterCount == 0, "the operation was cancelled")
+    }
+
+    @Test("A timeout of zero or less throws without running the operation", arguments: [Duration.zero, .seconds(-1)])
+    func nonPositiveTimeout(timeout: Duration) async {
+        let clock = TestClock()
+        let ran = Recorder<Bool>()
+        await #expect(throws: TimeoutError.self) {
+            try await withTimeout(timeout, clock: clock) { await ran.append(true) }
+        }
+        #expect(await ran.values.isEmpty)
+    }
+
+    @Test("The operation's own error is rethrown")
+    func operationError() async {
+        let clock = TestClock()
+        await #expect(throws: TestFailure(id: 3)) {
+            try await withTimeout(.seconds(1), clock: clock) { throw TestFailure(id: 3) }
         }
     }
-    
-    // MARK: - DeadlineTask Tests
-    
-    func testDeadlineTaskSucceeds() async throws {
-        let deadline = Date().addingTimeInterval(1.0)
-        
-        let result = try await DeadlineTask.run(deadline: deadline) {
-            try await Task.sleep(for: .milliseconds(50))
-            return "success"
+
+    @Test("Cancelling the caller throws CancellationError, not TimeoutError")
+    func callerCancelled() async throws {
+        let clock = TestClock()
+        let gate = AsyncSemaphore(value: 0)
+        let call = Task {
+            try await withTimeout(.seconds(5), clock: clock) { try await gate.wait() }
         }
-        
-        XCTAssertEqual(result, "success")
+        try await clock.waitForSleepers()
+        call.cancel()
+        await #expect(throws: CancellationError.self) { try await call.value }
     }
-    
-    func testDeadlineTaskFailsWhenDeadlinePassed() async {
-        let deadline = Date().addingTimeInterval(-1.0) // Past deadline
-        
-        do {
-            _ = try await DeadlineTask.run(deadline: deadline) {
-                return "should not execute"
+
+    @Test("Steps that share a deadline share its time")
+    func sharedDeadline() async throws {
+        let clock = TestClock()
+        let deadline = clock.now.advanced(by: .seconds(10))
+        let first = try await withDeadline(deadline, clock: clock) { 1 }
+        #expect(first == 1)
+
+        clock.advance(by: .seconds(10))
+        await #expect(throws: TimeoutError.self) {
+            try await withDeadline(deadline, clock: clock) { 2 }
+        }
+    }
+
+    @Test("The ContinuousClock overload times out a real sleep")
+    func continuousClock() async {
+        await #expect(throws: TimeoutError.self) {
+            try await withTimeout(.milliseconds(20)) {
+                try await Task.sleep(for: .seconds(30))
             }
-            XCTFail("Expected deadline passed error")
-        } catch {
-            XCTAssertTrue(error is DeadlineTask<String>.DeadlineError)
         }
-    }
-    
-    func testDeadlineTaskWithDuration() async throws {
-        let result = try await DeadlineTask.run(after: .seconds(1)) {
-            return "success"
-        }
-        
-        XCTAssertEqual(result, "success")
-    }
-    
-    // MARK: - ScheduledTask Tests
-    
-    func testScheduledTaskExecutes() async throws {
-        let task = ScheduledTask(after: .milliseconds(50)) {
-            return "executed"
-        }
-        
-        await task.start()
-        let result = try await task.wait()
-        
-        XCTAssertEqual(result, "executed")
-    }
-    
-    func testScheduledTaskCanBeCancelled() async {
-        let task = ScheduledTask(after: .seconds(10)) {
-            return "should not execute"
-        }
-        
-        await task.start()
-        await task.cancel()
-        
-        let state = await task.currentState
-        XCTAssertEqual(state, .cancelled)
-    }
-    
-    // MARK: - CancellationScope Tests
-    
-    func testCancellationScopeRunsOperation() async throws {
-        let scope = CancellationScope()
-        
-        let result = try await scope.run {
-            return "success"
-        }
-        
-        XCTAssertEqual(result, "success")
-    }
-    
-    func testCancellationScopeThrowsWhenCancelled() async {
-        let scope = CancellationScope()
-        await scope.cancel()
-        
-        do {
-            _ = try await scope.run {
-                return "should not execute"
-            }
-            XCTFail("Expected cancellation error")
-        } catch {
-            XCTAssertTrue(error is CancellationError)
-        }
-    }
-    
-    func testCancellationTokenWorks() throws {
-        let token = CancellationToken()
-        
-        XCTAssertFalse(token.isCancelled)
-        XCTAssertNoThrow(try token.throwIfCancelled())
-        
-        token.cancel()
-        
-        XCTAssertTrue(token.isCancelled)
-        XCTAssertThrowsError(try token.throwIfCancelled())
     }
 }

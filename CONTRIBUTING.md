@@ -1,99 +1,71 @@
 # Contributing to SwiftConcurrency
 
-First off, thank you for considering contributing to SwiftConcurrency! It's people like you that make SwiftConcurrency such a great tool.
+Thank you for helping. This guide covers what you need to build, test and change the package.
 
-## Code of Conduct
+## Ground rules
 
-This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code.
+- Be kind; the [code of conduct](CODE_OF_CONDUCT.md) applies everywhere in the project.
+- Report security problems privately, as described in [SECURITY.md](SECURITY.md).
+- Open an issue before a large change, so we can agree on the API first.
 
-## How Can I Contribute?
+## Set up
 
-### Reporting Bugs
+You need Xcode 26 or later (Swift 6.2).
 
-Before creating bug reports, please check the existing issues as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible:
-
-- **Use a clear and descriptive title**
-- **Describe the exact steps which reproduce the problem**
-- **Provide specific examples to demonstrate the steps**
-- **Describe the behavior you observed after following the steps**
-- **Explain which behavior you expected to see instead and why**
-- **Include Swift version and OS version**
-
-### Suggesting Enhancements
-
-Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion, please include:
-
-- **Use a clear and descriptive title**
-- **Provide a step-by-step description of the suggested enhancement**
-- **Provide specific examples to demonstrate the steps**
-- **Describe the current behavior and explain which behavior you expected to see instead**
-- **Explain why this enhancement would be useful**
-
-### Pull Requests
-
-1. Fork the repo and create your branch from `main`
-2. If you've added code that should be tested, add tests
-3. If you've changed APIs, update the documentation
-4. Ensure the test suite passes
-5. Make sure your code follows the existing style (SwiftLint)
-6. Issue that pull request!
-
-## Development Setup
-
-```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/SwiftConcurrency.git
-
-# Navigate to the project
+```sh
+git clone https://github.com/muhittincamdali/SwiftConcurrency.git
 cd SwiftConcurrency
-
-# Open in Xcode
-open Package.swift
-
-# Run tests
+swift build
 swift test
 ```
 
-## Style Guide
+Open `Package.swift` in Xcode to work on the library, and
+`Examples/ConcurrencyDemo/ConcurrencyDemo.xcodeproj` to run the example app.
 
-- Follow [Swift API Design Guidelines](https://swift.org/documentation/api-design-guidelines/)
-- Use SwiftLint for code style consistency
-- Write meaningful commit messages following [Conventional Commits](https://www.conventionalcommits.org/)
-- Document public APIs with DocC-compatible comments
-- Ensure all types are `Sendable` compliant
+## Checks to run before a pull request
 
-## Concurrency Guidelines
+```sh
+swift test                                    # macOS, including the exit tests
+xcodebuild test -scheme SwiftConcurrency \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild docbuild -scheme SwiftConcurrency -destination 'generic/platform=iOS'
+xcodebuild build -project Examples/ConcurrencyDemo/ConcurrencyDemo.xcodeproj \
+  -scheme ConcurrencyDemo -destination 'generic/platform=iOS Simulator'
+```
 
-Since this is a concurrency library, please follow these additional guidelines:
+CI runs the same steps, builds for tvOS, watchOS and visionOS, and checks links.
 
-- **Actor Isolation**: Prefer actors for shared mutable state
-- **Sendable**: All public types must conform to Sendable
-- **Data Races**: Test thoroughly for data races using `-strict-concurrency=complete`
-- **Cancellation**: Always handle task cancellation gracefully
-- **Documentation**: Include thread-safety documentation in comments
+## Writing code
 
-## Commit Messages
+- Every public type is `Sendable` and compiles in the Swift 6 language mode without warnings.
+- Every wait must end when its task is cancelled. Register the waiter and check
+  `Task.isCancelled` under the same lock, and let the cancellation handler remove the waiter
+  under that lock (see `AsyncSemaphore.wait()`).
+- Anything that waits for time takes a `Clock`, so it can be tested with `TestClock`.
+- Reject invalid configuration with a `precondition` that names the value, and add an exit
+  test for it.
+- Document every public symbol; `xcodebuild docbuild` must report no warnings.
 
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+## Writing tests
 
-- `feat:` A new feature
-- `fix:` A bug fix
-- `docs:` Documentation only changes
-- `style:` Code style changes (formatting, semicolons, etc)
-- `refactor:` Code change that neither fixes a bug nor adds a feature
-- `test:` Adding missing tests
-- `chore:` Changes to the build process or auxiliary tools
+- Use Swift Testing. Drive time with `TestClock` and `waitForSleepers()`, never with
+  `Task.sleep` on the real clock.
+- Wait for results through a task's `value` or the `Recorder` actor in
+  `Tests/SwiftConcurrencyTests/Support.swift`; poll with `waitUntil` only for a state that has
+  no hook of its own.
+- Test the edge cases: cancellation before and during a wait, a limit of 1, empty input, and
+  values at the limits of `Int` and `Duration`.
 
-Example: `feat(debounce): add grouped debounce variant`
+## README samples
 
-## Testing
+The README's code comes from `Examples/ConcurrencyDemo/ConcurrencyDemo/ReadmeSamples.swift`,
+which the tests compile through a symlink. Change the sample there first, then copy it into
+the README. Regenerate the screenshots with `scripts/capture-example-screens.sh` when a demo
+screen changes.
 
-- Write tests for all new functionality
-- Use `TestScheduler` for time-dependent tests
-- Aim for deterministic tests (no real delays)
-- Test cancellation scenarios
-- Test error propagation
+## Commits and pull requests
 
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`,
+  `test:`, `ci:`), one change per commit, with a body that says why.
+- Add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md) for every change a
+  user would notice.

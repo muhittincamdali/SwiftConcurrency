@@ -25,14 +25,14 @@
 
 <!-- brand:end -->
 
-SwiftConcurrency, `async`/`await` etrafındaki gündelik sorunlar için küçük bir Swift 6 paketidir. Standart kütüphane bu sorunları her uygulamanın kendisine bırakır: aynı anda dörtten fazla dosya indirmemek, iki kaydetme işleminin üst üste binmesini engellemek, on saniye sonra bir istekten vazgeçmek, geri çekilmeyle (backoff) yeniden denemek, yalnızca kullanıcı yazmayı bıraktığında arama yapmak, üç ekran aynı veriyi istediğinde tek bir istek göndermek ve çöken bir sunucuyu aramayı bırakmak. Her sorunun tek bir türü ya da fonksiyonu vardır; hepsi `Sendable`'dır, görev iptal edildiğinde beklemelerini sonlandırır ve bir `Clock` alır; böylece testler zamanı beklemek yerine ilerletebilir. Hiçbir bağımlılığı yoktur.
+SwiftConcurrency, `async`/`await` etrafındaki gündelik sorunlar için küçük bir Swift 6 paketidir. Standart kütüphane bu sorunları her uygulamanın kendisine bırakır: aynı anda dörtten fazla dosya indirmemek, iki kaydetme işleminin üst üste binmesini engellemek, on saniye sonra bir istekten vazgeçmek, geri çekilmeyle (backoff) yeniden denemek, yalnızca kullanıcı yazmayı bıraktığında arama yapmak, üç ekran aynı veriyi istediğinde tek bir istek göndermek ve çöken bir sunucuyu çağırmayı bırakmak. Her sorunun tek bir türü ya da fonksiyonu vardır; hepsi `Sendable`'dır, görev iptal edildiğinde beklemelerini sonlandırır ve bir `Clock` alır; böylece testler zamanı beklemek yerine ilerletebilir. Hiçbir bağımlılığı yoktur.
 
 ## Öne çıkanlar
 
 - **Sıra ve sınırlar** — `TaskQueue`, asenkron işlemleri eklendikleri sırayla, tek tek ya da seçtiğiniz bir sınıra kadar eşzamanlı çalıştırır; `AsyncSemaphore` ve `concurrentMap(maxConcurrency:)` aynı anda ne kadar işin çalışacağını sınırlar.
 - **Zaman aşımları ve yeniden denemeler** — `withTimeout`, `withDeadline` ve sabit, doğrusal ya da üstel `Backoff` ile jitter destekleyen `retry`; bekleme süreleri `Duration`'a dönüşmeden önce üst sınırla kısıtlanır, bu yüzden hiçbir deneme sayısı ya da çarpan taşmaya yol açmaz.
 - **Arayüz kodu için hız denetimi** — arama alanları için `Debouncer`, kaydırma ve sürükleme işleyicileri için `Throttler` (ilk ve son çalıştırma); ikisi de bir view model'den çağırdığınız sade nesnelerdir.
-- **Hızlı başarısız olma, işi paylaşma** — `CircuitBreaker`, sürekli hata veren bir servisi aramayı bırakır; `SingleFlight`, birçok çağıran aynı anda aynı anahtarı istediğinde tek bir istek gönderir.
+- **Hızlı başarısız olma, işi paylaşma** — `CircuitBreaker`, sürekli hata veren bir servisi çağırmayı bırakır; `SingleFlight`, birçok çağıran aynı anda aynı anahtarı istediğinde tek bir istek gönderir.
 - **Her yerde iptal desteği** — paketteki her bekleme, görevi iptal edildiğinde hemen sona erer; iptal edilen bekleyen izin almaz, işlemini asla çalıştırmaz ve bellekte iz bırakmaz.
 - **Beklemeyen testler** — `TestClock` ve `waitForSleepers()`, bir testin 30 saniyelik backoff'u seçtiği satırda bitirmesini sağlar; sonuç her çalıştırmada aynıdır.
 

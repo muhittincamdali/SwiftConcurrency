@@ -97,6 +97,8 @@ public struct Backoff: Sendable, Hashable {
             let seconds = initial.seconds + increment.seconds * index
             return Self.duration(seconds: seconds, cappedAt: maxDelay)
         case let .exponential(initial, multiplier, maxDelay):
+            // Once the power overflows to infinity, 0 × infinity would be NaN.
+            guard initial > .zero else { return .zero }
             let seconds = initial.seconds * Self.power(multiplier, index)
             return Self.duration(seconds: seconds, cappedAt: maxDelay)
         }

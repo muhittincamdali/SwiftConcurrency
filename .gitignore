@@ -43,3 +43,6 @@ fastlane/test_output
 *.xcuserstate
 *.xcscmblueprint
 *.idea/
+
+# Link checker cache
+.lycheecache

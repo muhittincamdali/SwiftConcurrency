@@ -1,29 +1,24 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
     name: "SwiftConcurrency",
     platforms: [
-        .iOS(.v15),
+        .iOS(.v16),
         .macOS(.v13),
-        .tvOS(.v15),
-        .watchOS(.v8),
-        .visionOS(.v1)
+        .tvOS(.v16),
+        .watchOS(.v9),
+        .visionOS(.v1),
     ],
     products: [
         .library(name: "SwiftConcurrency", targets: ["SwiftConcurrency"]),
     ],
     targets: [
-        .target(
-            name: "SwiftConcurrency",
-            path: "Sources/SwiftConcurrency",
-            swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
-            ]
-        ),
+        .target(name: "SwiftConcurrency"),
         .testTarget(
             name: "SwiftConcurrencyTests",
             dependencies: ["SwiftConcurrency"]
-        )
-    ]
+        ),
+    ],
+    swiftLanguageModes: [.v6]
 )

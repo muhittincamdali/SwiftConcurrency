@@ -157,8 +157,10 @@ public struct Backoff: Sendable, Hashable {
 
 extension Duration {
     /// The duration in seconds as a floating-point number.
+    ///
+    /// Division works on the full 128-bit value; `components` would trap for durations longer
+    /// than `Int64.max` seconds, which `Duration` can hold.
     var seconds: Double {
-        let (whole, attoseconds) = components
-        return Double(whole) + Double(attoseconds) * 1e-18
+        self / .seconds(1)
     }
 }

@@ -37,6 +37,21 @@ struct BackoffTests {
         #expect(linear.baseDelay(forRetry: retry) == .seconds(60))
     }
 
+    @Test("A maxDelay longer than Int64.max seconds does not trap")
+    func maxDelayBeyondInt64Seconds() {
+        let maxDelay = Duration.seconds(Int64.max) * 4
+        let exponential = Backoff.exponential(maxDelay: maxDelay)
+        #expect(exponential.baseDelay(forRetry: 3) == .milliseconds(800))
+        #expect(exponential.baseDelay(forRetry: 100) == maxDelay)
+        let linear = Backoff.linear(initial: .seconds(1), increment: .seconds(Int64.max), maxDelay: maxDelay)
+        #expect(linear.baseDelay(forRetry: 10) == maxDelay)
+        var generator = SeededGenerator(seed: 3)
+        for retry in [1, 100, Int.max] {
+            #expect(exponential.jittered(.full).delay(forRetry: retry, using: &generator) <= maxDelay)
+            #expect(exponential.jittered(.equal).delay(forRetry: retry, using: &generator) <= maxDelay)
+        }
+    }
+
     @Test("Retry numbers below 1 are treated as the first retry", arguments: [0, -1, Int.min])
     func lowRetryNumbers(retry: Int) {
         let backoff = Backoff.exponential(initial: .milliseconds(100))
